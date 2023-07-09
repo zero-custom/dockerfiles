@@ -9,7 +9,7 @@ ENV DHT_REPO_URL https://github.com/bittorrent/bootstrap-dht.git
 RUN apk add --no-cache $APK_DEPS &&\
     mkdir $BOOST_ROOT && \
     wget $BOOST_URL -O /tmp/boost.tar.gz && \
-    tar -zxvf /tmp/boost.tar.gz -C $BOOST_ROOT --strip-components 1 && \
+    tar -zxf /tmp/boost.tar.gz -C $BOOST_ROOT --strip-components 1 && \
     cd $BOOST_ROOT && \
     ./bootstrap.sh && \
     ./bootstrap.sh --prefix=/usr && \

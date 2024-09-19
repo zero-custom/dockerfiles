@@ -2,6 +2,7 @@ FROM mitmproxy/mitmproxy AS entrypoint
 
 FROM python:alpine AS wheelbuilder
 RUN mkdir /wheels &&\
+    apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main --no-cache bsd-compat-headers cargo openssl-dev &&\
     pip wheel --no-cache-dir --wheel-dir /wheels mitmproxy
 
 FROM alpine:latest

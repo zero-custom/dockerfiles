@@ -2,6 +2,9 @@ name: mitmproxy
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'mitmproxy/**'
 
 jobs:
   prepare:

@@ -10,7 +10,7 @@ RUN apk add --no-cache build-base git py3-pip &&\
 FROM python:alpine AS wheelbuilder
 WORKDIR /wheels
 COPY --from=mitmproxy_rs_builder /mitmproxy_rs/target/wheels/*.whl /wheels
-RUN apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main --no-cache bsd-compat-headers openssl-dev py3-ruamel.yaml.clib &&\
+RUN apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main --no-cache bsd-compat-headers cargo openssl-dev py3-ruamel.yaml.clib &&\
     pip wheel --no-cache-dir --find-links /wheels --wheel-dir /wheels mitmproxy
 
 FROM alpine:latest

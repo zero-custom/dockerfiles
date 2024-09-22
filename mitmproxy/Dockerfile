@@ -12,8 +12,9 @@ WORKDIR /wheels
 COPY --from=mitmproxy_rs_builder /mitmproxy_rs/target/wheels/*.whl /wheels
 RUN apkArch="$(apk --print-arch)"; \
     case $apkArch in \
-        aarch64) apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main --no-cache bsd-compat-headers openssl-dev py3-ruamel.yaml.clib &&\
-        *) apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main --no-cache bsd-compat-headers openssl-dev &&\
+        aarch64) apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main --no-cache bsd-compat-headers openssl-dev py3-ruamel.yaml.clib  ;; \
+        *) apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main --no-cache bsd-compat-headers openssl-dev  ;; \
+    esac; \
     pip wheel --no-cache-dir --find-links /wheels --wheel-dir /wheels mitmproxy
 
 FROM alpine:latest

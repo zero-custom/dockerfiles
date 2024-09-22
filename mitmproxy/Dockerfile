@@ -11,7 +11,7 @@ FROM python:alpine AS wheelbuilder
 WORKDIR /wheels
 COPY --from=mitmproxy_rs_builder /mitmproxy_rs/target/wheels/*.whl /wheels
 RUN apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main --no-cache bsd-compat-headers cargo openssl-dev &&\
-    pip wheel --no-cache-dir --wheel-dir /wheels mitmproxy
+    pip wheel --no-cache-dir --find-links /wheels --wheel-dir /wheels mitmproxy
 
 FROM alpine:latest
 RUN mkdir -p /wheels/
@@ -19,7 +19,7 @@ COPY --from=wheelbuilder /wheels/mitmproxy*.whl /wheels/aioquic*.whl /wheels/pyl
 RUN apk add --no-cache python3 py3-pip libgcc shadow &&\
     apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing --no-cache gosu &&\
     useradd -mU mitmproxy &&\
-    pip install --break-system-packages --no-cache-dir --find-links=/wheels mitmproxy &&\
+    pip install --break-system-packages --no-cache-dir --find-links /wheels mitmproxy &&\
     rm -rf /wheels
 
 VOLUME /home/mitmproxy/.mitmproxy

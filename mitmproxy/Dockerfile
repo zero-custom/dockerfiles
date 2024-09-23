@@ -1,7 +1,7 @@
 FROM mitmproxy/mitmproxy AS entrypoint
 
 FROM rust:alpine AS mitmproxy_rs_builder
-RUN apk add --no-cache build-base git py3-pip py3-ruamel.yaml.clib &&\
+RUN apk add --no-cache build-base git py3-pip py3-ruamel.yaml.clib python3-dev &&\
     pip install --no-cache --break-system-packages maturin[patchelf] &&\
     git clone --branch 0.6.3 https://github.com/mitmproxy/mitmproxy_rs.git &&\
     cd mitmproxy_rs/mitmproxy-rs/ &&\

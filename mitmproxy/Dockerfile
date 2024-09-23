@@ -7,7 +7,7 @@ RUN apk add --no-cache build-base git py3-pip &&\
     cd mitmproxy_rs/mitmproxy-rs/ &&\
     maturin build --release &&\
     mkdir /wheels && cd /wheels &&\
-    pip wheel --no-index ruamel.yaml.clib
+    pip wheel ruamel.yaml.clib
 
 FROM python:alpine AS wheelbuilder
 WORKDIR /wheels

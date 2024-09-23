@@ -19,7 +19,7 @@ RUN apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main --no-ca
 FROM alpine:latest
 RUN mkdir -p /wheels/
 COPY --from=wheelbuilder /wheels/mitmproxy*.whl /wheels/aioquic*.whl /wheels/pylsqpack*.whl /wheels/ruamel*.whl /wheels
-RUN apk add --no-cache python3 py3-pip libgcc shadow &&\
+RUN apk add --no-cache python3 py3-pip libgcc shadow bash &&\
     apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing --no-cache gosu &&\
     useradd -mU mitmproxy &&\
     pip install --break-system-packages --no-cache-dir --find-links /wheels mitmproxy &&\

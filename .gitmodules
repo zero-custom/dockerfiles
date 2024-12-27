@@ -1,0 +1,3 @@
+[submodule "privoxy"]
+	path = privoxy
+	url = https://github.com/Tardo/docker-privoxy-https.git

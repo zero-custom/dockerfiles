@@ -4,7 +4,7 @@ FROM alpine:latest
 WORKDIR /app/
 COPY --from=entrypoint /app/ .
 RUN apk add --no-cache nano shadow gcompat ffmpeg &&\
-    useradd -U mitmproxy &&\
+    useradd -U filestash &&\
     chown -R filestash:filestash /app/ &&\
     find /app/data/ -type d -exec chmod 770 {} \; &&\
     find /app/data/ -type f -exec chmod 760 {} \; &&\

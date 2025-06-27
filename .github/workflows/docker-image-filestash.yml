@@ -60,13 +60,13 @@ jobs:
         name: Docker Manifest GitHub Action(latest)
         uses: Noelware/docker-manifest-action@0.4.2
         with:
-          inputs: ${{ secrets.DOCKERHUB_USERNAME }}/mitmproxy:latest
+          inputs: ${{ secrets.DOCKERHUB_USERNAME }}/filestash:latest
           push: true
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/mitmproxy:amd64-${{ needs.prepare.outputs.now }}
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/filestash:amd64-${{ needs.prepare.outputs.now }}
       -
         name: Docker Manifest GitHub Action(date)
         uses: Noelware/docker-manifest-action@0.4.2
         with:
-          inputs: ${{ secrets.DOCKERHUB_USERNAME }}/mitmproxy:${{ needs.prepare.outputs.now }}
+          inputs: ${{ secrets.DOCKERHUB_USERNAME }}/filestash:${{ needs.prepare.outputs.now }}
           push: true
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/mitmproxy:amd64-${{ needs.prepare.outputs.now }}
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/filestash:amd64-${{ needs.prepare.outputs.now }}

@@ -1,0 +1,4 @@
+[submodule "universal-package-install"]
+	path = universal-package-install
+	url = https://github.com/zero-custom/docker-mods.git
+	branch = universal-package-install

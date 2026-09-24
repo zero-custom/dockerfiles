@@ -1,0 +1,62 @@
+name: mitmproxy version check
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mitmproxy-version-check
+  cancel-in-progress: false
+
+jobs:
+  check-bump:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v4.1.7
+      -
+        name: Check PyPI for newer mitmproxy and auto-bump
+        run: |
+          set -eu
+          # Pinned version is the single source of truth: the ARG default.
+          # Fall back to the legacy `mitmproxy==x.y.z` form if ARG is absent.
+          PINNED=$(grep -oP '^ARG MITMPROXY_VERSION=\K[0-9.]+' mitmproxy/Dockerfile | head -1 || true)
+          if [ -z "$PINNED" ]; then
+            PINNED=$(grep -oE 'mitmproxy==[0-9][0-9.]*' mitmproxy/Dockerfile | head -1 | cut -d= -f3)
+          fi
+          test -n "$PINNED"
+          echo "Pinned version: $PINNED"
+          LATEST=$(curl -sSL https://pypi.org/pypi/mitmproxy/json | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
+          test -n "$LATEST"
+          echo "PyPI latest: $LATEST"
+          NOOP=$(python3 - "$PINNED" "$LATEST" <<'EOF'
+          import sys
+          def key(v):
+              return tuple(int(p) if p.isdigit() else p for p in v.split('.'))
+          pinned, latest = sys.argv[1], sys.argv[2]
+          print('yes' if key(latest) <= key(pinned) else 'no')
+          EOF
+          )
+          if [ "$NOOP" = "yes" ]; then
+            echo "No newer release (pinned=$PINNED, latest=$LATEST); nothing to do."
+            exit 0
+          fi
+          echo "Newer release found: $PINNED -> $LATEST; bumping Dockerfile."
+          if grep -q '^ARG MITMPROXY_VERSION=' mitmproxy/Dockerfile; then
+            sed -i "s/^ARG MITMPROXY_VERSION=.*/ARG MITMPROXY_VERSION=${LATEST}/" mitmproxy/Dockerfile
+          else
+            sed -i "s/mitmproxy==[0-9][0-9.]*/mitmproxy==${LATEST}/g" mitmproxy/Dockerfile
+          fi
+          git diff -- mitmproxy/Dockerfile
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add mitmproxy/Dockerfile
+          git commit -m "mitmproxy: bump to ${LATEST} (auto, PyPI check)"
+          # Pushing a mitmproxy/** path change triggers docker-image-mitmproxy.yml.
+          # Any CI failure there is the stop condition for human intervention.
+          git push

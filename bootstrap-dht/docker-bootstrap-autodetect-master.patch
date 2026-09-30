@@ -1,0 +1,179 @@
+diff --git a/src/main.cpp b/src/main.cpp
+index d86e708..fcd1c50 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -48,9 +48,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ #include <cinttypes> // for PRId64
+ #include <array>
+
++#if BOOST_VERSION < 106600
+ #include <boost/uuid/sha1.hpp>
++#else
++#include <boost/uuid/detail/sha1.hpp>
++#endif
+ #include <boost/crc.hpp>
+ #include <boost/system/error_code.hpp>
++#include <boost/system/system_error.hpp>
+ #include <boost/circular_buffer.hpp>
+ #include <boost/asio/steady_timer.hpp>
+
+@@ -1141,7 +1146,12 @@ struct router_thread
+
+ void print_usage()
+ {
+-	fprintf(stderr, "usage: dht-bootstrap <external-IP> [options]\n"
++	fprintf(stderr, "usage: dht-bootstrap <external-IP|auto> [options]\n"
++		"\n"
++		"  <external-IP> may be \"auto\" to detect the default-route IPv4 via\n"
++		"  UDP connect(8.8.8.8:53) + local_endpoint (zero traffic).\n"
++		"  --ipv6 <ip> accepts \"auto\" to detect default-route IPv6 via\n"
++		"  UDP connect([2001:4860:4860::8888]:53) + local_endpoint.\n"
+ 		"\n"
+ 		"OPTIONS:\n"
+ 		"--help                prints this message.\n"
+@@ -1195,6 +1205,37 @@ void signal_handler(error_code const& e, int const signo, signal_set& signals
+ std::string operator "" _s(const char* str, size_t len)
+ { return std::string(str, len); }
+
++// Auto-detect the default-route local address with zero traffic.
++// UDP connect() only sets the default remote; no packet is sent.
++// Throws boost::system::system_error on failure; caller converts to
++// "use explicit IP" error. Result must still pass is_valid_ep().
++address detect_default_route_address(bool v6)
++{
++	io_service ios;
++	udp::socket s(ios);
++	error_code ec;
++	if (!v6)
++	{
++		s.open(udp::v4(), ec);
++		if (ec) throw boost::system::system_error(ec);
++		s.connect(udp::endpoint(address::from_string("8.8.8.8"), 53), ec);
++		if (ec) throw boost::system::system_error(ec);
++		udp::endpoint local = s.local_endpoint(ec);
++		if (ec) throw boost::system::system_error(ec);
++		return local.address();
++	}
++	else
++	{
++		s.open(udp::v6(), ec);
++		if (ec) throw boost::system::system_error(ec);
++		s.connect(udp::endpoint(address::from_string("2001:4860:4860::8888"), 53), ec);
++		if (ec) throw boost::system::system_error(ec);
++		udp::endpoint local = s.local_endpoint(ec);
++		if (ec) throw boost::system::system_error(ec);
++		return local.address();
++	}
++}
++
+ int main(int argc, char* argv[])
+ {
+ 	if (argc < 2)
+@@ -1338,9 +1379,50 @@ int main(int argc, char* argv[])
+ 		else if (argv[i] == "--ipv6"_s)
+ 		{
+ 			++i;
+-			address_v6 addr = address_v6::from_string(argv[i], ec);
+-			if (!ec)
+-				bind_addrs.push_back(addr);
++			if (i < argc && std::string(argv[i]) == "auto")
++			{
++				try
++				{
++					address auto6 = detect_default_route_address(true);
++					// Validate IP only here with a dummy valid port: final --port
++					// may be parsed later in argv order; bind uses final port.
++					udp::endpoint auto_ep(auto6, 6881);
++					if (!is_valid_ep(auto_ep))
++					{
++						fprintf(stderr, "auto-detected IPv6 \"%s\" is not usable (private/reserved); "
++							"specify --ipv6 <public-ip> explicitly\n"
++							, auto6.to_string().c_str());
++						return 1;
++					}
++					printf("auto-detected IPv6: %s (via default route)\n"
++						, auto6.to_string().c_str());
++					bind_addrs.push_back(auto6);
++				}
++				catch (boost::system::system_error const& e)
++				{
++					fprintf(stderr, "IPv6 auto-detect failed: %s; "
++						"specify --ipv6 <public-ip> explicitly\n"
++						, e.what());
++					return 1;
++				}
++			}
++			else
++			{
++				if (i >= argc)
++				{
++					fprintf(stderr, "--ipv6 expects an IP argument\n");
++					return 1;
++				}
++				address_v6 addr = address_v6::from_string(argv[i], ec);
++				if (!ec)
++					bind_addrs.push_back(addr);
++				else
++				{
++					fprintf(stderr, "invalid --ipv6 address \"%s\": %s\n"
++						, argv[i], ec.message().c_str());
++					return 1;
++				}
++			}
+ 		}
+ 		else if (argv[i] == "--version"_s)
+ 		{
+@@ -1384,16 +1466,46 @@ int main(int argc, char* argv[])
+ 	static_assert(sizeof(node_entry_v6) == 38, "node_entry_t may not contain padding");
+
+ 	{
+-		address_v4 our_external_ip = address_v4::from_string(argv[1], ec);
+-		if (ec)
++		if (std::string(argv[1]) == "auto")
+ 		{
+-			fprintf(stderr, "invalid external IP address specified \"%s\": (%d) %s\n"
+-				, argv[1], ec.value(), ec.message().c_str());
+-			print_usage();
+-			return 1;
++			try
++			{
++				address auto4 = detect_default_route_address(false);
++				udp::endpoint auto_ep(auto4, port);
++				if (!is_valid_ep(auto_ep))
++				{
++					fprintf(stderr, "auto-detected IPv4 \"%s\" is not usable (private/reserved); "
++						"specify <external-IP> explicitly\n"
++						, auto4.to_string().c_str());
++					print_usage();
++					return 1;
++				}
++				printf("auto-detected IPv4: %s (via default route)\n"
++					, auto4.to_string().c_str());
++				bind_addrs.push_back(auto4);
++			}
++			catch (boost::system::system_error const& e)
++			{
++				fprintf(stderr, "IPv4 auto-detect failed: %s; "
++					"specify <external-IP> explicitly\n"
++					, e.what());
++				print_usage();
++				return 1;
++			}
+ 		}
++		else
++		{
++			address_v4 our_external_ip = address_v4::from_string(argv[1], ec);
++			if (ec)
++			{
++				fprintf(stderr, "invalid external IP address specified \"%s\": (%d) %s\n"
++					, argv[1], ec.value(), ec.message().c_str());
++				print_usage();
++				return 1;
++			}
+
+-		bind_addrs.push_back(our_external_ip);
++			bind_addrs.push_back(our_external_ip);
++		}
+ 	}
+
+ 	io_service ios;
